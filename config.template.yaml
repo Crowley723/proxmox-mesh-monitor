@@ -1,0 +1,20 @@
+monitor:
+  polling_interval: 30s
+  timeout: 5s
+  alert_selection: alphabetical
+
+mesh:
+  port: 8443
+  tls_enabled: true
+  join_enabled: false
+
+cluster:
+  cert_dir: ./certs
+  cert_validity_days: 365
+  renewal_threshold_days: 292
+
+alert:
+  enabled: false
+
+logging:
+  path: ./app.log
