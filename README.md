@@ -4,7 +4,7 @@ This application aims to provide a 3rd party way to monitor the status of nodes 
 
 ### Current Status
 - [x] Bootstrapping
-- [ ] Joining
+- [X] Joining
 - [ ] Health Checks
 - [ ] Notifications
 - [ ] mTLS Certificate Revocation List (CRL)
