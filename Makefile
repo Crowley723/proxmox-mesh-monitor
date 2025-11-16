@@ -1,11 +1,26 @@
-.PHONY: install dev dev-debug test coverage coverage-html generate
+.PHONY: install dev dev-debug test coverage coverage-html generate bootstrap join run
+
+bootstrap:
+	go run main.go --bootstrap --config config.template.yaml --cert-dir ./certs
+
+join:
+	go run main.go -join <keymaster-addr> -join-token <token> -config config.template.yaml -cert-dir ./certs
+
+run:
+	go run main.go -config config.template.yaml -cert-dir ./certs
+
+new-join-token:
+	go run main.go --config config.template.yaml --generate-token --token-node-hostname abc123
+
+validate-join-token:
+	go run main.go --config config.template.yaml --verify-token --token-node-hostname abc123 --token <token>
 
 install:
 	go mod tidy
 	go mod download
 
 dev:
-	GO_ENV=development reflex -r '\.go$$' -s -- go run ./main.go -c config.template.yaml
+	GO_ENV=development reflex -r '\.go$$' -s -- go run main.go -config config.template.yaml -cert-dir ./certs
 
 dev-debug:
 	GO_ENV=development reflex -r '\.go$$' -s -- dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient ./main.go -- -c config.template.yaml

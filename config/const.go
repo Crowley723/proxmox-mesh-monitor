@@ -6,9 +6,10 @@ const (
 )
 
 const (
-	constCACertName        = "ca.crt"
-	constCAKeyName         = "ca.key"
-	constNodeCertName      = "node.crt"
-	constNodeKeyName       = "node.key"
-	constJWTSigningKeyName = "jwt.key"
+	ConstCACertName              = "ca.crt"
+	ConstCAKeyName               = "ca.key"
+	ConstNodeCertName            = "node.crt"
+	ConstNodeKeyName             = "node.key"
+	ConstJWTSigningKeyName       = "jwt.key"
+	ConstJWTSigningPublicKeyName = "jwt.pub"
 )
