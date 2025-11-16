@@ -10,14 +10,21 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net"
 	"os"
 	"time"
 
 	"github.com/Crowley723/proxmox-node-monitor/config"
+	"github.com/Crowley723/proxmox-node-monitor/peers"
 )
 
 // Bootstrap initializes the PKI required to sign mTLS certificates for other nodes. It creates the root CA for the cluster as well as the certificate for the current keymaster node.
-func Bootstrap(cfg *config.Config, certsDir string) error {
+func Bootstrap(cfg *config.Config, certsDir string, address string) error {
+	err := peers.InitializeRegistry(certsDir, address)
+	if err != nil {
+		return fmt.Errorf("error initializing registry %v", err)
+	}
+
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("error generating CA key: %v", err)
@@ -58,6 +65,8 @@ func Bootstrap(cfg *config.Config, certsDir string) error {
 		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		SignatureAlgorithm: x509.ECDSAWithSHA384,
+		DNSNames:           []string{"localhost", "keymaster"},
+		IPAddresses:        []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1"), net.ParseIP(address)},
 	}
 
 	nodeCertBytes, err := x509.CreateCertificate(rand.Reader, nodeCertTemplate, caCert, &nodeKey.PublicKey, caKey)

@@ -1,17 +1,17 @@
 package config
 
 type Config struct {
-	Monitor MonitorConfig `yaml:"monitor"`
-	Mesh    MeshConfig    `yaml:"mesh"`
-	Cluster ClusterConfig `yaml:"cluster"`
-	Alert   AlertConfig   `yaml:"alert"`
-	Logging LoggingConfig `yaml:"logging"`
+	Monitor MonitorConfig `yaml:"monitor" json:"monitor"`
+	Mesh    MeshConfig    `yaml:"mesh" json:"mesh"`
+	Cluster ClusterConfig `yaml:"cluster" json:"cluster"`
+	Alert   AlertConfig   `yaml:"alert" json:"alert"`
+	Logging LoggingConfig `yaml:"logging" json:"logging"`
 }
 
 type MonitorConfig struct {
-	PollingInterval string `yaml:"polling_interval"`
-	Timeout         string `yaml:"timeout"`
-	AlertSelection  string `yaml:"alert_selection"`
+	PollingInterval string `yaml:"polling_interval" json:"polling_interval"`
+	Timeout         string `yaml:"timeout" json:"timeout"`
+	AlertSelection  string `yaml:"alert_selection" json:"alert_selection"`
 }
 
 var DefaultMonitorConfig = MonitorConfig{
@@ -21,9 +21,9 @@ var DefaultMonitorConfig = MonitorConfig{
 }
 
 type MeshConfig struct {
-	Port        int  `yaml:"port"`
-	TLSEnabled  bool `yaml:"tls_enabled"`
-	JoinEnabled bool `yaml:"join_enabled"`
+	Port        int  `yaml:"port" json:"port"`
+	TLSEnabled  bool `yaml:"tls_enabled" json:"tls_enabled"`
+	JoinEnabled bool `yaml:"join_enabled" json:"join_enabled"`
 }
 
 var DefaultMeshConfig = MeshConfig{
@@ -33,9 +33,10 @@ var DefaultMeshConfig = MeshConfig{
 }
 
 type ClusterConfig struct {
-	CertDir              string `yaml:"cert_dir"`
-	CertValidityDays     int    `yaml:"cert_validity_days"`
-	RenewalThresholdDays int    `yaml:"renewal_threshold_days"`
+	CertDir              string   `yaml:"cert_dir" json:"cert_dir"`
+	TrustedProxies       []string `yaml:"trusted_proxies" json:"trusted_proxies"`
+	CertValidityDays     int      `yaml:"cert_validity_days" json:"cert_validity_days"`
+	RenewalThresholdDays int      `yaml:"renewal_threshold_days" json:"renewal_threshold_days"`
 }
 
 var DefaultClusterConfig = ClusterConfig{
@@ -45,9 +46,9 @@ var DefaultClusterConfig = ClusterConfig{
 }
 
 type AlertConfig struct {
-	Enabled    bool                 `yaml:"enabled"`
-	Thresholds AlertThresholdConfig `yaml:"thresholds"`
-	Email      EmailAlertConfig     `yaml:"email"`
+	Enabled    bool                 `yaml:"enabled" json:"enabled"`
+	Thresholds AlertThresholdConfig `yaml:"thresholds" json:"thresholds"`
+	Email      EmailAlertConfig     `yaml:"email" json:"email"`
 }
 
 var DefaultAlertConfig = AlertConfig{
@@ -56,8 +57,8 @@ var DefaultAlertConfig = AlertConfig{
 }
 
 type AlertThresholdConfig struct {
-	NodeDownDuration string `yaml:"node_down_duration"`
-	AlertInterval    string `yaml:"alert_interval"`
+	NodeDownDuration string `yaml:"node_down_duration" json:"node_down_duration"`
+	AlertInterval    string `yaml:"alert_interval" json:"alert_interval"`
 }
 
 var DefaultAlertThresholdConfig = AlertThresholdConfig{
@@ -66,14 +67,14 @@ var DefaultAlertThresholdConfig = AlertThresholdConfig{
 }
 
 type EmailAlertConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	From     string `yaml:"from"`
-	To       string `yaml:"to"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Host     string `yaml:"host" json:"host"`
+	Port     int    `yaml:"port" json:"port"`
+	From     string `yaml:"from" json:"from"`
+	To       string `yaml:"to" json:"to"`
+	Username string `yaml:"username" json:"username"`
+	Password string `yaml:"password" json:"password"`
 }
 
 type LoggingConfig struct {
-	Path string `yaml:"path"`
+	Path string `yaml:"path" json:"path"`
 }

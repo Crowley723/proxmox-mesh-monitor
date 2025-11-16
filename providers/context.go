@@ -1,28 +1,29 @@
-package api
+package providers
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/Crowley723/proxmox-node-monitor/config"
+	"github.com/Crowley723/proxmox-node-monitor/peers"
 )
 
 type AppContext struct {
 	context.Context
-	Config   *config.Config
-	Logger   *slog.Logger
-	Request  *http.Request
-	Response http.ResponseWriter
+	IsKeymaster bool
+	Config      *config.Config
+	Logger      *slog.Logger
+	Peers       *peers.PeerRegistry
+	Request     *http.Request
+	Response    http.ResponseWriter
 }
 
 type contextKey string
 
 const appContextKey contextKey = "appContext"
 
-// AppHandler is a handler that takes only AppContext
 type AppHandler func(*AppContext)
 
 // AppContextMiddleware injects AppContext into the request context
@@ -30,11 +31,13 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCtx := &AppContext{
-				Context:  r.Context(),
-				Config:   baseCtx.Config,
-				Logger:   baseCtx.Logger,
-				Request:  r,
-				Response: w,
+				Context:     r.Context(),
+				IsKeymaster: baseCtx.IsKeymaster,
+				Config:      baseCtx.Config,
+				Logger:      baseCtx.Logger,
+				Peers:       baseCtx.Peers,
+				Request:     r,
+				Response:    w,
 			}
 			ctx := context.WithValue(r.Context(), appContextKey, requestCtx)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -54,31 +57,14 @@ func Wrap(handler AppHandler) http.HandlerFunc {
 	}
 }
 
-// RequireMTLS wraps a handler requiring mutual TLS
-func RequireMTLS(caCertPool *x509.CertPool, handler AppHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		appCtx := GetAppContext(r)
-		if appCtx == nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		// Check if client certificate exists and is valid
-		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-			http.Error(w, "Client certificate required", http.StatusUnauthorized)
-			return
-		}
-
-		handler(appCtx)
-	}
-}
-
 // NewAppContext creates a new AppContext
-func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger) *AppContext {
+func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, isKeymaster bool, peers *peers.PeerRegistry) *AppContext {
 	return &AppContext{
-		Context: ctx,
-		Config:  cfg,
-		Logger:  logger,
+		Context:     ctx,
+		Config:      cfg,
+		Logger:      logger,
+		IsKeymaster: isKeymaster,
+		Peers:       peers,
 	}
 }
 
@@ -90,7 +76,6 @@ func GetAppContext(r *http.Request) *AppContext {
 	return nil
 }
 
-// Methods on AppContext for responses
 func (ctx *AppContext) WriteJSON(status int, data interface{}) {
 	ctx.Response.Header().Set("Content-Type", "application/json")
 	ctx.Response.WriteHeader(status)

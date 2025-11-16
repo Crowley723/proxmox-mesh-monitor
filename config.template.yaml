@@ -6,7 +6,7 @@ monitor:
 mesh:
   port: 8443
   tls_enabled: true
-  join_enabled: false
+  join_enabled: true
 
 cluster:
   cert_dir: ./certs

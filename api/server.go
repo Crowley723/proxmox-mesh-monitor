@@ -6,21 +6,20 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/Crowley723/proxmox-node-monitor/config"
+	"github.com/Crowley723/proxmox-node-monitor/providers"
 )
 
-func StartServer(ctx context.Context, cfg *config.Config, logger *slog.Logger) error {
-	cert, err := tls.LoadX509KeyPair(cfg.Cluster.NodeCertPath(""), cfg.Cluster.NodeKeyPath(""))
+func StartServer(ctx *providers.AppContext) error {
+	cert, err := tls.LoadX509KeyPair(ctx.Config.Cluster.NodeCertPath(""), ctx.Config.Cluster.NodeKeyPath(""))
 	if err != nil {
 		return err
 	}
 
-	caCert, err := os.ReadFile(cfg.Cluster.CACertPath(""))
+	caCert, err := os.ReadFile(ctx.Config.Cluster.CACertPath(""))
 	if err != nil {
 		return err
 	}
@@ -35,18 +34,15 @@ func StartServer(ctx context.Context, cfg *config.Config, logger *slog.Logger) e
 
 	mux := http.NewServeMux()
 
-	appCtx := NewAppContext(ctx, cfg, logger)
-
-	mux.HandleFunc("GET /ca.crt", Wrap(handleCACertGET))
-	mux.HandleFunc("GET /jwks.json", Wrap(handleJWKSPublicKeyGET))
-	mux.HandleFunc("GET /crl", Wrap(handleCRLGET))
-	mux.HandleFunc("POST /join", Wrap(handleJoinPOST))
-	mux.HandleFunc("POST /sign-csr", RequireMTLS(caCertPool, handleSignCSR))
+	mux.HandleFunc("GET /ca.crt", providers.Wrap(handleCACertGET))
+	mux.HandleFunc("GET /jwks.json", providers.Wrap(handleJWKSPublicKeyGET))
+	mux.HandleFunc("GET /crl", providers.Wrap(handleCRLGET))
+	mux.HandleFunc("POST /join", providers.Wrap(handleJoinPOST))
 	mux.HandleFunc("GET /config", RequireMTLS(caCertPool, handleConfigGET))
 
-	handler := AppContextMiddleware(appCtx)(mux)
+	handler := providers.AppContextMiddleware(ctx)(mux)
 
-	address := fmt.Sprintf(":%d", cfg.Mesh.Port)
+	address := fmt.Sprintf(":%d", ctx.Config.Mesh.Port)
 
 	server := &http.Server{
 		Addr:      address,
@@ -54,7 +50,7 @@ func StartServer(ctx context.Context, cfg *config.Config, logger *slog.Logger) e
 		Handler:   handler,
 	}
 
-	logger.Info("Listening on address", "addr", address)
+	ctx.Logger.Info("Listening on address", "addr", address)
 
 	done := make(chan error, 1)
 
@@ -66,13 +62,13 @@ func StartServer(ctx context.Context, cfg *config.Config, logger *slog.Logger) e
 	}()
 
 	<-ctx.Done()
-	logger.Info("Shutting down server")
+	ctx.Logger.Info("Shutting down server")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Error("graceful shutdown failed", "err", err)
+		ctx.Logger.Error("graceful shutdown failed", "err", err)
 		return err
 	}
 

@@ -14,8 +14,7 @@ import (
 )
 
 func GenerateJoinToken(cfg *config.Config, nodeID string, expiry time.Duration) (string, error) {
-	signingKeyPath := filepath.Join(cfg.Cluster.JWTSigningKeyPath(""))
-	signingKeyBytes, err := os.ReadFile(signingKeyPath)
+	signingKeyBytes, err := os.ReadFile(cfg.Cluster.JWTSigningKeyPath(""))
 	if err != nil {
 		return "", fmt.Errorf("failed to read signing key: %w", err)
 	}
@@ -58,16 +57,16 @@ func GenerateJoinToken(cfg *config.Config, nodeID string, expiry time.Duration) 
 	return tokenString, nil
 }
 
-func ValidateJoinToken(cfg *config.Config, nodeID string, tokenString string) (valid bool, err error) {
+func ValidateJoinToken(cfg *config.Config, tokenString string) (valid bool, claims jwt.MapClaims, err error) {
 	publicKeyPath := filepath.Join(cfg.Cluster.JWTSigningPublicKeyPath(""))
 	publicKeyBytes, err := os.ReadFile(publicKeyPath)
 	if err != nil {
-		return false, fmt.Errorf("failed to read public key: %w", err)
+		return false, nil, fmt.Errorf("failed to read public key: %w", err)
 	}
 
 	block, _ := pem.Decode(publicKeyBytes)
 	if block == nil {
-		return false, fmt.Errorf("failed to decode public key PEM")
+		return false, nil, fmt.Errorf("failed to decode public key PEM")
 	}
 
 	var key interface{}
@@ -75,11 +74,11 @@ func ValidateJoinToken(cfg *config.Config, nodeID string, tokenString string) (v
 	case "PUBLIC KEY":
 		publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
-			return false, fmt.Errorf("failed to parse public key: %w", err)
+			return false, nil, fmt.Errorf("failed to parse public key: %w", err)
 		}
 		key = publicKey
 	default:
-		return false, fmt.Errorf("unknown key type: %s", block.Type)
+		return false, nil, fmt.Errorf("unknown key type: %s", block.Type)
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -90,26 +89,17 @@ func ValidateJoinToken(cfg *config.Config, nodeID string, tokenString string) (v
 	})
 
 	if err != nil {
-		return false, fmt.Errorf("failed to parse token: %w", err)
+		return false, nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	if !token.Valid {
-		return false, fmt.Errorf("invalid token")
+		return false, nil, fmt.Errorf("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return false, fmt.Errorf("invalid token claims")
+		return false, nil, fmt.Errorf("invalid token claims")
 	}
 
-	tokenNodeID, ok := (claims)["node_id"].(string)
-	if !ok {
-		return false, fmt.Errorf("invalid token or token node_id claim")
-	}
-
-	if tokenNodeID != nodeID {
-		return false, fmt.Errorf("node_id mismatch: expected %s, got %s", nodeID, tokenNodeID)
-	}
-
-	return true, nil
+	return true, claims, nil
 }

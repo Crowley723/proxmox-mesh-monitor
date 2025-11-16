@@ -1,16 +1,16 @@
-.PHONY: install dev dev-debug test coverage coverage-html generate bootstrap join run
+.PHONY: install dev dev-debug test coverage coverage-html generate bootstrap join run new-join-token validate-join-token
 
 bootstrap:
-	go run main.go --bootstrap --config config.template.yaml --cert-dir ./certs
+	go run main.go --bootstrap --address 127.0.0.1 --config config.template.yaml --cert-dir ./certs
 
 join:
 	go run main.go -join <keymaster-addr> -join-token <token> -config config.template.yaml -cert-dir ./certs
 
 run:
-	go run main.go -config config.template.yaml -cert-dir ./certs
+	go run main.go --config config.template.yaml --cert-dir ./certs
 
 new-join-token:
-	go run main.go --config config.template.yaml --generate-token --token-node-hostname abc123
+	go run main.go --config config.template.yaml --generate-token --token-node-hostname node1
 
 validate-join-token:
 	go run main.go --config config.template.yaml --verify-token --token-node-hostname abc123 --token <token>

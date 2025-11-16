@@ -13,13 +13,16 @@ import (
 	"github.com/Crowley723/proxmox-node-monitor/api"
 	"github.com/Crowley723/proxmox-node-monitor/config"
 	"github.com/Crowley723/proxmox-node-monitor/mesh"
+	"github.com/Crowley723/proxmox-node-monitor/peers"
+	"github.com/Crowley723/proxmox-node-monitor/providers"
 )
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
 
 	var (
-		joinAddr          = flag.String("join", "", "join an existing cluster (address of keymaster node)")
+		joinFlag          = flag.Bool("join", false, "join an existing cluster")
+		nodeAddress       = flag.String("address", "", "address of master node or node to join through")
 		joinToken         = flag.String("join-token", "", "token for joining")
 		configPath        = flag.String("config", "config.yaml", "config file path")
 		certDir           = flag.String("cert-dir", "/etc/mesh-app/certs", "directory for cert/key files")
@@ -46,13 +49,13 @@ func main() {
 
 	// Bootstrap first node: generate CA, node cert, and keypair.
 	if *bootstrapMode {
-		bootstrap(configPath, certDir)
+		bootstrap(configPath, certDir, nodeAddress)
 		return
 	}
 
 	// Join additional nodes: generate tls cert, get it signed, pull config from cluster.
-	if *joinAddr != "" {
-		join(configPath, joinAddr, certDir, joinToken)
+	if *joinFlag {
+		join(configPath, nodeAddress, certDir, joinToken)
 		return
 	}
 
@@ -68,6 +71,7 @@ func main() {
 		slog.Error("failed to open log file", "error", err)
 		os.Exit(1)
 	}
+
 	defer func(logFile *os.File) {
 		err := logFile.Close()
 		if err != nil {
@@ -83,13 +87,21 @@ func main() {
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
 	go func() {
 		<-sigChan
 		logger.Info("Received shutdown signal")
 		cancel()
 	}()
 
-	err = api.StartServer(ctx, cfg, logger)
+	peerRegistry, err := peers.LoadRegistry(cfg.Cluster.CertDir)
+	if err != nil {
+		slog.Error("failed to load peer registry", "err", err)
+	}
+
+	appCtx := providers.NewAppContext(ctx, cfg, logger, isKeymaster(cfg), peerRegistry)
+
+	err = api.StartServer(appCtx)
 	if err != nil {
 		logger.Error("failed to start server", "err", err)
 		return
@@ -113,7 +125,7 @@ func validateJoinToken(configPath *string, tokenValue *string, tokenNodeHostname
 		os.Exit(1)
 	}
 
-	_, err = mesh.ValidateJoinToken(cfg, *tokenNodeHostname, *tokenValue)
+	_, _, err = mesh.ValidateJoinToken(cfg, *tokenValue)
 	if err != nil {
 		slog.Error("failed to verify token", "err", err)
 		os.Exit(1)
@@ -140,13 +152,19 @@ func generateJoinToken(configPath *string, tokenNodeHostname *string, tokenExpir
 	fmt.Println(token)
 }
 
-func bootstrap(configPath *string, certDir *string) {
+func bootstrap(configPath *string, certDir *string, addr *string) {
+	if addr == nil {
+		slog.Error("node address is required")
+		return
+	}
+
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
 		slog.Error("failed to load config", "err", err)
+		return
 	}
 
-	if err := mesh.Bootstrap(cfg, *certDir); err != nil {
+	if err := mesh.Bootstrap(cfg, *certDir, *addr); err != nil {
 		slog.Error("bootstrap failed", "err", err)
 		return
 	}
@@ -155,11 +173,34 @@ func bootstrap(configPath *string, certDir *string) {
 
 func join(configPath *string, joinAddr *string, certDir *string, joinToken *string) {
 	if *joinToken == "" {
-		slog.Error("join-token required when using -join")
+		slog.Error("join-token required when using --join")
+		return
 	}
-	//if err := mesh.Join(*joinAddr, *joinToken, *configPath, *certDir); err != nil {
-	//	slog.Error("join failed: %v", err)
-	//}
-	slog.Info("Join complete. Restart in normal mode with: ./app -config config.yaml")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-quit
+		cancel()
+	}()
+
+	if err := mesh.Join(ctx, *joinAddr, *joinToken, *configPath, *certDir); err != nil {
+		slog.Error("join failed", "error", err)
+		return
+	}
+
+	slog.Info("Join complete. Restart in normal mode with: ./app --config config.yaml")
 	return
+}
+
+func isKeymaster(cfg *config.Config) bool {
+	_, err := os.Stat(cfg.Cluster.CAKeyPath(""))
+	if err != nil && !os.IsNotExist(err) {
+		slog.Warn("error checking keymaster status", "err", err)
+	}
+	return err == nil
 }
