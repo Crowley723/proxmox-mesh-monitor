@@ -40,6 +40,8 @@ func StartServer(ctx *providers.AppContext) error {
 	mux.HandleFunc("POST /join", providers.Wrap(handleJoinPOST))
 	mux.HandleFunc("GET /config", RequireMTLS(caCertPool, handleConfigGET))
 
+	mux.HandleFunc("GET /health", RequireMTLS(caCertPool, handleHealthGET))
+
 	handler := providers.AppContextMiddleware(ctx)(mux)
 
 	address := fmt.Sprintf(":%d", ctx.Config.Mesh.Port)

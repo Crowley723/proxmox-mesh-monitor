@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Crowley723/proxmox-node-monitor/mesh"
 	"github.com/Crowley723/proxmox-node-monitor/peers"
@@ -207,4 +208,17 @@ func handleConfigGET(ctx *providers.AppContext) {
 	ctx.Response.Header().Set("Content-Type", "application/json")
 	// TODO: Return actual configuration
 	ctx.Response.Write([]byte(`{"status": "config endpoint"}`))
+}
+
+func handleHealthGET(ctx *providers.AppContext) {
+	ctx.Logger.Info("Health check called", "hostname", ctx.Hostname)
+
+	health := map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"hostname":  ctx.Hostname,
+		"uptime":    time.Since(ctx.StartTime).Seconds(),
+	}
+
+	ctx.WriteJSON(http.StatusOK, health)
 }

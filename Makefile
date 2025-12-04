@@ -4,7 +4,7 @@ bootstrap:
 	go run main.go --bootstrap --address 127.0.0.1 --config config.template.yaml --cert-dir ./certs
 
 join:
-	go run main.go -join <keymaster-addr> -join-token <token> -config config.template.yaml -cert-dir ./certs
+	go run main.go -join -address <keymaster-addr> -join-token <token> -config config.template.yaml -cert-dir ./certs
 
 run:
 	go run main.go --config config.template.yaml --cert-dir ./certs

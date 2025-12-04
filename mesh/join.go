@@ -23,6 +23,7 @@ import (
 	"github.com/Crowley723/proxmox-node-monitor/config"
 	"github.com/Crowley723/proxmox-node-monitor/peers"
 	"github.com/Crowley723/proxmox-node-monitor/providers"
+	"github.com/Crowley723/proxmox-node-monitor/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,6 +31,12 @@ func Join(ctx context.Context, joinAddr, joinToken, configFile, certsDir string)
 	caCertBytes, err := fetchCACert(ctx, joinAddr)
 	if err != nil {
 		return fmt.Errorf("failed to fetch CA cert: %w", err)
+	}
+
+	//Create Certs directory
+	err = os.MkdirAll(certsDir, 0700)
+	if err != nil {
+		return fmt.Errorf("unable to create certificate directory: %v", err)
 	}
 
 	err = writeCertificateFile(filepath.Join(certsDir, config.ConstCACertName), caCertBytes)
@@ -127,15 +134,7 @@ func generateNodeKey(certsDir string) error {
 }
 
 func generateCSR(certsDir string) (csr []byte, err error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("unable to determine hostname: %s", err)
-	}
-
-	hostnameEnv := os.Getenv("HOSTNAME")
-	if hostnameEnv != "" {
-		hostname = hostnameEnv
-	}
+	hostname := utils.GetHostname()
 
 	nodeKeyPath := filepath.Join(certsDir, config.ConstNodeKeyName)
 	nodeKeyBytes, err := os.ReadFile(nodeKeyPath)

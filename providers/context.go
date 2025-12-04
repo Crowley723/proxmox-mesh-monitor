@@ -5,17 +5,23 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Crowley723/proxmox-node-monitor/config"
+	"github.com/Crowley723/proxmox-node-monitor/monitor"
 	"github.com/Crowley723/proxmox-node-monitor/peers"
+	"github.com/Crowley723/proxmox-node-monitor/utils"
 )
 
 type AppContext struct {
 	context.Context
 	IsKeymaster bool
+	StartTime   time.Time
+	Hostname    string
 	Config      *config.Config
 	Logger      *slog.Logger
 	Peers       *peers.PeerRegistry
+	Monitor     *monitor.Monitor
 	Request     *http.Request
 	Response    http.ResponseWriter
 }
@@ -31,6 +37,8 @@ func AppContextMiddleware(baseCtx *AppContext) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCtx := &AppContext{
+				StartTime:   baseCtx.StartTime,
+				Hostname:    baseCtx.Hostname,
 				Context:     r.Context(),
 				IsKeymaster: baseCtx.IsKeymaster,
 				Config:      baseCtx.Config,
@@ -59,7 +67,12 @@ func Wrap(handler AppHandler) http.HandlerFunc {
 
 // NewAppContext creates a new AppContext
 func NewAppContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, isKeymaster bool, peers *peers.PeerRegistry) *AppContext {
+	hostname := utils.GetHostname()
+	logger.Info("AppContext created", "hostname", hostname)
+
 	return &AppContext{
+		Hostname:    hostname,
+		StartTime:   time.Now(),
 		Context:     ctx,
 		Config:      cfg,
 		Logger:      logger,

@@ -13,6 +13,7 @@ import (
 	"github.com/Crowley723/proxmox-node-monitor/api"
 	"github.com/Crowley723/proxmox-node-monitor/config"
 	"github.com/Crowley723/proxmox-node-monitor/mesh"
+	"github.com/Crowley723/proxmox-node-monitor/monitor"
 	"github.com/Crowley723/proxmox-node-monitor/peers"
 	"github.com/Crowley723/proxmox-node-monitor/providers"
 )
@@ -104,8 +105,16 @@ func main() {
 	err = api.StartServer(appCtx)
 	if err != nil {
 		logger.Error("failed to start server", "err", err)
-		return
+		os.Exit(1)
 	}
+
+	peerMonitor, err := monitor.New(cfg, logger, peerRegistry)
+	if err != nil {
+		logger.Error("failed to create monitor", "error", err)
+		os.Exit(1)
+	}
+
+	go peerMonitor.Start(appCtx)
 }
 
 func validateJoinToken(configPath *string, tokenValue *string, tokenNodeHostname *string) {
